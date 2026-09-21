@@ -58,12 +58,12 @@
   @media(max-width:720px){nav{display:none}}
 
   /* ── 首屏 ── */
-  .hero{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;padding:90px 20px 70px}
+  .hero{min-height:100vh;min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;padding:90px 20px 70px}
   .side-words{position:absolute;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;font-size:.85rem;letter-spacing:.65em;color:var(--ink-faint)}
   .side-words.l{left:6px}.side-words.r{right:6px}
   @media(max-width:900px){.side-words{display:none}}
   .hero h1{
-    font-size:clamp(2.6rem,7.5vw,4.6rem);font-weight:400;
+    font-size:2.6rem;font-size:clamp(2.6rem,7.5vw,4.6rem);font-weight:400;
     letter-spacing:.32em;margin-right:-.32em;
   }
   .hero .en{margin-top:20px;font-size:.8rem;letter-spacing:.5em;margin-right:-.5em;color:var(--ink-faint)}
@@ -94,7 +94,7 @@
   section{padding:110px 0}
   .sec-head{display:flex;align-items:baseline;gap:22px;margin-bottom:56px}
   .sec-num{font-size:.85rem;letter-spacing:.3em;color:var(--seal);white-space:nowrap}
-  .sec-head h2{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:400;letter-spacing:.24em;white-space:nowrap}
+  .sec-head h2{font-size:1.6rem;font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:400;letter-spacing:.24em;white-space:nowrap}
   .sec-head .rule{flex:1;height:1px;background:var(--line);min-width:40px}
   @media(max-width:600px){.sec-head h2{white-space:normal}}
 
@@ -169,7 +169,7 @@
   /* ── 引句 ── */
   .quotes{padding:120px 0;text-align:center}
   .quotes blockquote{
-    font-size:clamp(1.35rem,3.2vw,1.9rem);letter-spacing:.24em;
+    font-size:1.4rem;font-size:clamp(1.35rem,3.2vw,1.9rem);letter-spacing:.24em;
     color:var(--ink);min-height:2.2em;
     opacity:0;transition:opacity 2.4s ease;
   }
@@ -201,7 +201,7 @@
   /* ── 版本切换 ── */
   #vswitch{position:fixed;right:24px;bottom:22px;z-index:50;font-size:.72rem;letter-spacing:.26em;color:var(--ink-faint);
     text-decoration:none;font-family:var(--serif);border:1px solid var(--line);border-radius:999px;padding:9px 16px;
-    background:rgba(243,239,229,.72);backdrop-filter:blur(6px);transition:color .5s,border-color .5s}
+    background:rgba(243,239,229,.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:color .5s,border-color .5s}
   #vswitch:hover{color:var(--ink);border-color:var(--seal)}
 
   /* 渐显 */
@@ -486,10 +486,14 @@
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   /* ── 渐显 ── */
-  var io = new IntersectionObserver(function(es){
-    es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("shown"); io.unobserve(e.target);} });
-  },{threshold:.12});
-  document.querySelectorAll(".fade,.card").forEach(function(el){ io.observe(el); });
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("shown"); io.unobserve(e.target);} });
+    },{threshold:.12});
+    document.querySelectorAll(".fade,.card").forEach(function(el){ io.observe(el); });
+  }else{
+    document.querySelectorAll(".fade,.card").forEach(function(el){ el.classList.add("shown"); });
+  }
 
   /* ── 左侧行迹 ── */
   var walked = document.querySelector("#path .walked"),

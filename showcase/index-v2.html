@@ -18,7 +18,7 @@
   *{margin:0;padding:0;box-sizing:border-box}
   html{scroll-behavior:smooth}
   html.von{scroll-behavior:auto}
-  body{background:var(--bg);color:var(--inkp);font-family:var(--serif);line-height:1.9;overflow-x:hidden}
+  body{background-color:var(--bg);background-image:radial-gradient(120% 80% at 50% 0%,rgba(126,136,158,.12),rgba(0,0,0,0) 60%);color:var(--inkp);font-family:var(--serif);line-height:1.9;overflow-x:hidden}
   ::selection{background:rgba(192,90,64,.35)}
   a{color:inherit}
 
@@ -53,7 +53,7 @@
   @media(max-width:760px){#dots{display:none}}
 
   #vswitch{left:24px;bottom:22px;font-size:.72rem;letter-spacing:.26em;color:var(--faint);text-decoration:none;
-    border:1px solid var(--hair);border-radius:999px;padding:9px 16px;backdrop-filter:blur(6px);transition:color .5s,border-color .5s}
+    border:1px solid var(--hair);border-radius:999px;padding:9px 16px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:color .5s,border-color .5s}
   #vswitch:hover{color:var(--inkp);border-color:var(--seal)}
 
   /* 自定义光标 */
@@ -84,12 +84,12 @@
   .rv.on{opacity:1;transform:none}
 
   /* ── 首屏 ── */
-  .hero{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;padding:80px 20px}
+  .hero{min-height:100vh;min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;padding:80px 20px}
   .side-words{position:absolute;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;font-size:.8rem;letter-spacing:.7em;color:var(--faint)}
   .side-words.l{left:88px}.side-words.r{right:88px}
   @media(max-width:1150px){.side-words{display:none}}
   .hero .kicker{font-size:.78rem;letter-spacing:.5em;margin-right:-.5em;color:var(--faint);margin-bottom:30px}
-  .hero h1{font-size:clamp(2.9rem,9vw,6.8rem);font-weight:400;letter-spacing:.24em;margin-right:-.24em;line-height:1.25}
+  .hero h1{font-size:3rem;font-size:clamp(2.9rem,9vw,6.8rem);font-weight:400;letter-spacing:.24em;margin-right:-.24em;line-height:1.25}
   .hero .en{margin-top:26px;font-size:.8rem;letter-spacing:.62em;margin-right:-.62em;color:var(--faint)}
   @media(max-width:640px){.hero .en{font-size:.66rem;letter-spacing:.3em;margin-right:-.3em;white-space:nowrap}}
   .hero .sub{margin-top:16px;font-size:1rem;letter-spacing:.2em;color:var(--mut)}
@@ -102,30 +102,32 @@
   /* ── 序 · 宣言 ── */
   .mf{min-height:92vh;display:flex;align-items:center}
   .mf .cap{font-size:.78rem;letter-spacing:.4em;color:var(--seal);margin-bottom:38px}
-  .mf p{font-size:clamp(1.5rem,3.6vw,2.5rem);line-height:2;letter-spacing:.1em;font-weight:400;max-width:900px}
+  .mf p{font-size:1.5rem;font-size:clamp(1.5rem,3.6vw,2.5rem);line-height:2;letter-spacing:.1em;font-weight:400;max-width:900px}
   .mf p .ch{display:inline-block;opacity:.08;transform:translateY(.35em);transition:opacity 1s ease,transform 1s cubic-bezier(.22,.8,.24,1)}
   .mf p.on .ch{opacity:1;transform:none}
   .mf p .hi{color:var(--seal)}
 
   /* ── 作品场景 ── */
-  .scene{min-height:100svh;position:relative;display:flex;align-items:center;padding:120px 44px}
+  .scene{min-height:100vh;min-height:100svh;position:relative;display:flex;align-items:center;padding:120px 44px}
   @media(max-width:760px){.scene{padding:96px 26px}}
-  .ghost{position:absolute;top:50%;transform:translateY(-50%);font-size:clamp(9rem,30vh,17rem);line-height:1;
+  .ghost{position:absolute;top:50%;transform:translateY(-50%);font-size:10rem;font-size:clamp(9rem,30vh,17rem);line-height:1;
     color:transparent;-webkit-text-stroke:1px rgba(236,231,218,.09);user-select:none;letter-spacing:0;
     pointer-events:auto;transition:-webkit-text-stroke-color 1s ease}
   .ghost:hover{-webkit-text-stroke-color:rgba(236,231,218,.2)}
-  .ghost::after{content:attr(data-text);position:absolute;left:0;top:0;width:100%;color:transparent;-webkit-text-fill-color:transparent;
-    background-image:var(--peek);background-size:cover;background-position:center;
-    -webkit-background-clip:text;background-clip:text;-webkit-text-stroke:0;
-    opacity:0;transition:opacity 1.2s ease;pointer-events:none;filter:saturate(.92) contrast(1.04)}
-  .ghost:hover::after{opacity:.85}
+  @supports ((-webkit-background-clip:text) or (background-clip:text)){
+    .ghost::after{content:attr(data-text);position:absolute;left:0;top:0;width:100%;color:transparent;-webkit-text-fill-color:transparent;
+      background-image:var(--peek);background-size:cover;background-position:center;
+      -webkit-background-clip:text;background-clip:text;-webkit-text-stroke:0;
+      opacity:0;transition:opacity 1.2s ease;pointer-events:none;filter:saturate(.92) contrast(1.04)}
+    .ghost:hover::after{opacity:.85}
+  }
   .scene:nth-of-type(odd) .ghost{right:4vw}
   .scene:nth-of-type(even) .ghost{left:4vw}
   .scene-in{max-width:560px;position:relative;z-index:2}
   .scene:nth-of-type(even) .scene-in{margin-left:auto}
   .s-emblem{width:110px;height:110px;margin-bottom:30px}
   .s-no{font-size:.8rem;letter-spacing:.34em;color:var(--ac,var(--seal));margin-bottom:18px}
-  .scene h2{font-size:clamp(2rem,4.6vw,3.3rem);font-weight:400;letter-spacing:.14em;line-height:1.4}
+  .scene h2{font-size:2.1rem;font-size:clamp(2rem,4.6vw,3.3rem);font-weight:400;letter-spacing:.14em;line-height:1.4}
   .scene .en{font-size:.72rem;letter-spacing:.4em;color:var(--faint);margin-top:10px;text-transform:uppercase}
   .scene p.desc{margin-top:24px;font-size:.97rem;color:var(--mut);line-height:2.1}
   .s-tags{margin-top:22px;display:flex;flex-wrap:wrap;gap:9px}
@@ -159,7 +161,7 @@
   /* ── 长幕文字 ── */
   .marquee{overflow:hidden;padding:70px 0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
   .marquee .mq{display:flex;white-space:nowrap;width:max-content;animation:mq 46s linear infinite}
-  .marquee span{font-size:clamp(3rem,8vw,6rem);letter-spacing:.2em;color:transparent;-webkit-text-stroke:1px rgba(236,231,218,.13);padding-right:.6em}
+  .marquee span{font-size:3rem;font-size:clamp(3rem,8vw,6rem);letter-spacing:.2em;color:transparent;-webkit-text-stroke:1px rgba(236,231,218,.13);padding-right:.6em}
   .marquee span b{color:rgba(236,231,218,.16);-webkit-text-stroke:0;font-weight:400}
   @keyframes mq{to{transform:translateX(-50%)}}
 
@@ -175,14 +177,14 @@
 
   /* ── 引句 ── */
   .quote{min-height:60vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 0}
-  .quote blockquote{font-size:clamp(1.5rem,3.6vw,2.4rem);letter-spacing:.22em;line-height:1.9;min-height:2em;opacity:0;transition:opacity 2.2s ease}
+  .quote blockquote{font-size:1.5rem;font-size:clamp(1.5rem,3.6vw,2.4rem);letter-spacing:.22em;line-height:1.9;min-height:2em;opacity:0;transition:opacity 2.2s ease}
   .quote blockquote.vis{opacity:1}
   .quote cite{display:block;margin-top:26px;font-style:normal;font-size:.78rem;letter-spacing:.32em;color:var(--faint);opacity:0;transition:opacity 2.2s ease .3s}
   .quote cite.vis{opacity:1}
 
   /* ── 页脚 ── */
   footer{border-top:1px solid var(--hair);padding:100px 0 70px;position:relative}
-  .foot-motto{font-size:clamp(1.6rem,4vw,2.6rem);letter-spacing:.3em;line-height:1.9;margin-bottom:70px}
+  .foot-motto{font-size:1.7rem;font-size:clamp(1.6rem,4vw,2.6rem);letter-spacing:.3em;line-height:1.9;margin-bottom:70px}
   .foot-motto em{font-style:normal;color:var(--seal)}
   .foot-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:54px}
   @media(max-width:760px){.foot-grid{grid-template-columns:1fr}}
@@ -610,12 +612,17 @@ addEventListener("mousemove", function(){
 /* ── WebGL 流体墨色背景 ── */
 var canvas = document.getElementById("gl"), gl = null, prog = null, uTint, uTime, uMouse, uRes, tintCur = [0.42,0.36,0.26], tintTgt = tintCur.slice();
 try{
-  gl = canvas.getContext("webgl", { antialias:false, alpha:false, powerPreference:"low-power" });
+  gl = canvas.getContext("webgl", { antialias:false, alpha:false, powerPreference:"low-power" })
+       || canvas.getContext("experimental-webgl", { antialias:false, alpha:false });
 }catch(e){ gl = null; }
 if(gl){
   var VS = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
   var FS = [
-  "precision highp float;",
+  "#ifdef GL_FRAGMENT_PRECISION_HIGH",
+  " precision highp float;",
+  "#else",
+  " precision mediump float;",
+  "#endif",
   "uniform vec2 uRes;uniform float uTime;uniform vec2 uMouse;uniform vec3 uTint;",
   "float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}",
   "float vno(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.0-2.0*f);",
@@ -667,7 +674,9 @@ if(gl){
     uTint = gl.getUniformLocation(prog, "uTint");
   }catch(e){ gl = null; }
 }
-var mxr = vw/2, myr = vh/2;
+var mxr = vw/2, myr = vh/2, glLost = false;
+canvas.addEventListener("webglcontextlost", function(e){ e.preventDefault(); glLost = true; }, false);
+canvas.addEventListener("webglcontextrestored", function(){ glLost = false; }, false);
 function sizeGL(){
   if(!gl) return;
   var sc = Math.min(devicePixelRatio || 1, 1.5) * 0.75;
@@ -710,8 +719,8 @@ function loop(now){
   if(Math.abs(tgt - cur) < 0.05) cur = tgt;
   if(smoothOn) view.style.transform = "translate3d(0," + (-cur) + "px,0)";
 
-  /* 视差 */
-  for(var i = 0; i < paras.length; i++){
+  /* 视差（减少动态偏好下停用） */
+  if(!reduced) for(var i = 0; i < paras.length; i++){
     var p = paras[i];
     var c = (p.top + p.h/2) - (cur + vh/2);
     p.el.style.transform = "translate3d(0," + (c * p.sp).toFixed(2) + "px,0)" + (p.el.classList.contains("ghost") ? " translateY(-50%)" : "");
@@ -798,8 +807,8 @@ function loop(now){
     sg.globalAlpha = 1;
   }
 
-  /* GL */
-  if(gl){
+  /* GL（上下文丢失时静默停用，页面回退为深色底） */
+  if(gl && !glLost){
     var tsec = reduced ? 10 : (now - t0) / 1000;
     gl.uniform2f(uRes, canvas.width, canvas.height);
     gl.uniform1f(uTime, tsec);
@@ -814,6 +823,13 @@ function loop(now){
 /* ── 启动 ── */
 sizeGL(); sizeStars(); cachePara(); cur = tgt = scrollY;
 addEventListener("resize", function(){ sizeGL(); sizeStars(); cachePara(); });
+/* 预载悬停预览图，避免首次悬停才加载 */
+setTimeout(function(){
+  document.querySelectorAll(".ghost[data-text]").forEach(function(g){
+    var idx = "壹贰叁肆伍陆".indexOf(g.getAttribute("data-text"));
+    if(idx > -1){ var img = new Image(); img.src = "assets/w" + (idx + 1) + ".jpg"; }
+  });
+}, 2500);
 if(reduced){
   rvs.forEach(function(r){ r.el.classList.add("on"); r.on = true; });
   mfp.classList.add("on");
