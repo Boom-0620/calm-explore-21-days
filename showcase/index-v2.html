@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>平静地探寻 · 夜航版 Night Passage</title>
+<meta name="description" content="「平静地探寻」第二版：沉浸式夜航。六个可以慢慢做完的小世界，参考 lusion.co 的滚动叙事与 WebGL 流体，结合水墨气质。">
+<style>
+  :root{
+    --bg:#0b0c10;
+    --inkp:#ece7da;
+    --mut:rgba(236,231,218,.58);
+    --faint:rgba(236,231,218,.34);
+    --hair:rgba(236,231,218,.14);
+    --seal:#c05a40;
+    --serif:"Kaiti SC","STKaiti","KaiTi","Songti SC","STSong","Noto Serif SC","Noto Serif CJK SC","SimSun",serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  html.von{scroll-behavior:auto}
+  body{background:var(--bg);color:var(--inkp);font-family:var(--serif);line-height:1.9;overflow-x:hidden}
+  ::selection{background:rgba(192,90,64,.35)}
+  a{color:inherit}
+
+  /* ── WebGL 画布 ── */
+  #gl{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block}
+  #grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.05;mix-blend-mode:screen;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");}
+
+  /* ── 视图容器（平滑滚动时固定并位移） ── */
+  #view{position:relative;z-index:2}
+  #view.fixed{position:fixed;top:0;left:0;width:100%;will-change:transform}
+  #spacer{display:none}
+
+  /* ── 固定层：顶栏 / 圆点导航 / 呼吸标 / 切换 ── */
+  .chrome{position:fixed;z-index:40}
+  #topbar{top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:24px 34px;
+    background:linear-gradient(to bottom,rgba(11,12,16,.55),transparent);pointer-events:none}
+  #topbar *{pointer-events:auto}
+  .brand{display:flex;align-items:center;gap:12px;font-size:.92rem;letter-spacing:.3em;color:var(--mut)}
+  .brand .seal-s{width:30px;height:30px;background:var(--seal);color:#f3ece0;border-radius:4px;display:grid;place-items:center;letter-spacing:0}
+  #topbar nav{display:flex;gap:24px;font-size:.8rem;letter-spacing:.22em}
+  #topbar nav a{color:var(--faint);text-decoration:none;transition:color .5s}
+  #topbar nav a:hover{color:var(--inkp)}
+  @media(max-width:760px){#topbar nav{display:none}}
+
+  #dots{right:26px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:15px}
+  #dots a{position:relative;width:7px;height:7px;border-radius:50%;background:rgba(236,231,218,.22);transition:background .5s,transform .5s;display:block}
+  #dots a.on{background:var(--seal);transform:scale(1.5)}
+  #dots a i{position:absolute;right:18px;top:50%;transform:translateY(-50%);font-style:normal;font-size:.72rem;letter-spacing:.3em;color:var(--mut);opacity:0;white-space:nowrap;transition:opacity .5s}
+  #dots a:hover i{opacity:1}
+  @media(max-width:760px){#dots{display:none}}
+
+  #vswitch{left:24px;bottom:22px;font-size:.72rem;letter-spacing:.26em;color:var(--faint);text-decoration:none;
+    border:1px solid var(--hair);border-radius:999px;padding:9px 16px;backdrop-filter:blur(6px);transition:color .5s,border-color .5s}
+  #vswitch:hover{color:var(--inkp);border-color:var(--seal)}
+
+  /* 自定义光标 */
+  #cdot,#cring{position:fixed;z-index:60;pointer-events:none;border-radius:50%;left:0;top:0}
+  #cdot{width:5px;height:5px;background:var(--inkp);transform:translate(-50%,-50%)}
+  #cring{width:34px;height:34px;border:1px solid rgba(236,231,218,.35);transform:translate(-50%,-50%);transition:width .4s,height .4s,border-color .4s}
+  #cring.big{width:58px;height:58px;border-color:var(--seal)}
+  @media(pointer:coarse){#cdot,#cring{display:none}}
+  body:not(.hascursor) #cdot,body:not(.hascursor) #cring{opacity:0}
+
+  /* ── 载入幕 ── */
+  #loader{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;transition:opacity 1s ease .15s,visibility 0s 1.2s}
+  #loader.done{opacity:0;visibility:hidden}
+  #loader .ld-seal{width:64px;height:64px;background:var(--seal);color:#f3ece0;border-radius:6px;display:grid;place-items:center;font-size:1.5rem;box-shadow:0 10px 40px rgba(192,90,64,.3);animation:ldbreath 2.6s ease-in-out infinite}
+  #loader .ld-line{width:150px;height:1px;background:var(--hair);overflow:hidden}
+  #loader .ld-line i{display:block;height:100%;background:var(--seal);width:0;animation:ldfill 1.3s cubic-bezier(.6,0,.3,1) .2s forwards}
+  #loader .ld-t{font-size:.74rem;letter-spacing:.5em;margin-right:-.5em;color:var(--faint)}
+  @keyframes ldbreath{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+  @keyframes ldfill{to{width:100%}}
+
+  /* ── 通用 ── */
+  .wrap{max-width:1200px;margin:0 auto;padding:0 44px}
+  @media(max-width:760px){.wrap{padding:0 26px}}
+  .lm{display:block;overflow:hidden}
+  .li{display:block;transform:translateY(112%);transition:transform 1.3s cubic-bezier(.22,.8,.24,1)}
+  body.ready .lm.on .li{transform:none}
+  .rv{opacity:0;transform:translateY(40px);transition:opacity 1.2s ease,transform 1.2s cubic-bezier(.22,.8,.24,1)}
+  .rv.on{opacity:1;transform:none}
+
+  /* ── 首屏 ── */
+  .hero{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;padding:80px 20px}
+  .side-words{position:absolute;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;font-size:.8rem;letter-spacing:.7em;color:var(--faint)}
+  .side-words.l{left:88px}.side-words.r{right:88px}
+  @media(max-width:1150px){.side-words{display:none}}
+  .hero .kicker{font-size:.78rem;letter-spacing:.5em;margin-right:-.5em;color:var(--faint);margin-bottom:30px}
+  .hero h1{font-size:clamp(2.9rem,9vw,6.8rem);font-weight:400;letter-spacing:.24em;margin-right:-.24em;line-height:1.25}
+  .hero .en{margin-top:26px;font-size:.8rem;letter-spacing:.62em;margin-right:-.62em;color:var(--faint)}
+  @media(max-width:640px){.hero .en{font-size:.66rem;letter-spacing:.3em;margin-right:-.3em;white-space:nowrap}}
+  .hero .sub{margin-top:16px;font-size:1rem;letter-spacing:.2em;color:var(--mut)}
+  .hero .sub em{font-style:normal;color:var(--seal)}
+  .scroll-cue{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:12px;font-size:.72rem;letter-spacing:.42em;margin-right:-.42em;color:var(--faint)}
+  .scroll-cue .line{width:1px;height:56px;background:var(--hair);position:relative;overflow:hidden}
+  .scroll-cue .line::after{content:"";position:absolute;left:0;top:-40%;width:100%;height:40%;background:var(--inkp);animation:cue 2.6s cubic-bezier(.6,.1,.3,.9) infinite}
+  @keyframes cue{to{top:110%}}
+
+  /* ── 序 · 宣言 ── */
+  .mf{min-height:92vh;display:flex;align-items:center}
+  .mf .cap{font-size:.78rem;letter-spacing:.4em;color:var(--seal);margin-bottom:38px}
+  .mf p{font-size:clamp(1.5rem,3.6vw,2.5rem);line-height:2;letter-spacing:.1em;font-weight:400;max-width:900px}
+  .mf p .ch{display:inline-block;opacity:.08;transform:translateY(.35em);transition:opacity 1s ease,transform 1s cubic-bezier(.22,.8,.24,1)}
+  .mf p.on .ch{opacity:1;transform:none}
+  .mf p .hi{color:var(--seal)}
+
+  /* ── 作品场景 ── */
+  .scene{min-height:100svh;position:relative;display:flex;align-items:center;padding:120px 44px}
+  @media(max-width:760px){.scene{padding:96px 26px}}
+  .ghost{position:absolute;top:50%;transform:translateY(-50%);font-size:clamp(9rem,30vh,17rem);line-height:1;
+    color:transparent;-webkit-text-stroke:1px rgba(236,231,218,.09);pointer-events:none;user-select:none;letter-spacing:0}
+  .scene:nth-of-type(odd) .ghost{right:4vw}
+  .scene:nth-of-type(even) .ghost{left:4vw}
+  .scene-in{max-width:560px;position:relative;z-index:2}
+  .scene:nth-of-type(even) .scene-in{margin-left:auto}
+  .s-emblem{width:110px;height:110px;margin-bottom:30px}
+  .s-no{font-size:.8rem;letter-spacing:.34em;color:var(--ac,var(--seal));margin-bottom:18px}
+  .scene h2{font-size:clamp(2rem,4.6vw,3.3rem);font-weight:400;letter-spacing:.14em;line-height:1.4}
+  .scene .en{font-size:.72rem;letter-spacing:.4em;color:var(--faint);margin-top:10px;text-transform:uppercase}
+  .scene p.desc{margin-top:24px;font-size:.97rem;color:var(--mut);line-height:2.1}
+  .s-tags{margin-top:22px;display:flex;flex-wrap:wrap;gap:9px}
+  .s-tags span{font-size:.74rem;letter-spacing:.16em;color:var(--mut);border:1px solid var(--hair);border-radius:999px;padding:4px 14px}
+  .s-links{margin-top:30px;display:flex;gap:28px;align-items:baseline}
+  .s-links a{font-size:.92rem;letter-spacing:.18em;text-decoration:none}
+  .s-links .play{color:var(--ac,var(--seal));position:relative}
+  .s-links .play::after{content:"";position:absolute;left:0;bottom:-4px;height:1px;width:100%;background:var(--ac,var(--seal));transform:scaleX(.35);transform-origin:left;transition:transform .7s cubic-bezier(.22,.8,.24,1);opacity:.7}
+  .s-links .play:hover::after{transform:scaleX(1)}
+  .s-links .code{color:var(--faint);font-size:.8rem;transition:color .5s}
+  .s-links .code:hover{color:var(--mut)}
+  .credit{margin-top:20px;font-size:.76rem;line-height:2.1;color:var(--faint)}
+  .credit a{color:var(--mut);text-decoration:none;border-bottom:1px dotted var(--hair);transition:color .5s,border-color .5s}
+  .credit a:hover{color:var(--ac,var(--seal));border-color:var(--ac,var(--seal))}
+
+  /* 徽记动画 */
+  .s-emblem .float{animation:floaty 6s ease-in-out infinite}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .s-emblem .draw{stroke-dasharray:300;animation:draw 11s ease-in-out infinite alternate}
+  @keyframes draw{0%{stroke-dashoffset:300}55%,100%{stroke-dashoffset:0}}
+  .s-emblem .blink{animation:blink 5.5s ease-in-out infinite;transform-origin:center}
+  @keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
+  .s-emblem .jelly{animation:jelly 4.6s ease-in-out infinite;transform-origin:center bottom}
+  @keyframes jelly{0%,100%{transform:scale(1,1)}42%{transform:scale(1.1,.86)}58%{transform:scale(.94,1.08)}76%{transform:scale(1.03,.97)}}
+  .s-emblem .tw1,.s-emblem .tw2,.s-emblem .tw3{animation:twinkle 4.2s ease-in-out infinite}
+  .s-emblem .tw2{animation-delay:1.4s}.s-emblem .tw3{animation-delay:2.8s}
+  @keyframes twinkle{0%,100%{opacity:.25}50%{opacity:1}}
+  .s-emblem .moon{animation:glow 7s ease-in-out infinite}
+  @keyframes glow{0%,100%{opacity:.5}50%{opacity:1}}
+
+  /* ── 长幕文字 ── */
+  .marquee{overflow:hidden;padding:70px 0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+  .marquee .mq{display:flex;white-space:nowrap;width:max-content;animation:mq 46s linear infinite}
+  .marquee span{font-size:clamp(3rem,8vw,6rem);letter-spacing:.2em;color:transparent;-webkit-text-stroke:1px rgba(236,231,218,.13);padding-right:.6em}
+  .marquee span b{color:rgba(236,231,218,.16);-webkit-text-stroke:0;font-weight:400}
+  @keyframes mq{to{transform:translateX(-50%)}}
+
+  /* ── 气质 ── */
+  .traits{min-height:80vh;display:flex;flex-direction:column;justify-content:center;padding:110px 0}
+  .sec-cap{font-size:.78rem;letter-spacing:.4em;color:var(--seal);margin-bottom:44px}
+  .traits ul{list-style:none;max-width:880px}
+  .traits li{display:flex;gap:26px;padding:30px 0;border-top:1px solid var(--hair);align-items:baseline}
+  .traits li:last-child{border-bottom:1px solid var(--hair)}
+  .traits li i{font-style:normal;font-size:.78rem;letter-spacing:.2em;color:var(--faint);flex:none;width:36px}
+  .traits h4{font-size:1.25rem;font-weight:400;letter-spacing:.16em}
+  .traits p{margin-top:8px;font-size:.92rem;color:var(--mut);line-height:2}
+
+  /* ── 引句 ── */
+  .quote{min-height:60vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 0}
+  .quote blockquote{font-size:clamp(1.5rem,3.6vw,2.4rem);letter-spacing:.22em;line-height:1.9;min-height:2em;opacity:0;transition:opacity 2.2s ease}
+  .quote blockquote.vis{opacity:1}
+  .quote cite{display:block;margin-top:26px;font-style:normal;font-size:.78rem;letter-spacing:.32em;color:var(--faint);opacity:0;transition:opacity 2.2s ease .3s}
+  .quote cite.vis{opacity:1}
+
+  /* ── 页脚 ── */
+  footer{border-top:1px solid var(--hair);padding:100px 0 70px;position:relative}
+  .foot-motto{font-size:clamp(1.6rem,4vw,2.6rem);letter-spacing:.3em;line-height:1.9;margin-bottom:70px}
+  .foot-motto em{font-style:normal;color:var(--seal)}
+  .foot-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:54px}
+  @media(max-width:760px){.foot-grid{grid-template-columns:1fr}}
+  .foot-col h5{font-size:.78rem;font-weight:400;letter-spacing:.34em;color:var(--faint);margin-bottom:24px}
+  .foot-col ul{list-style:none}
+  .foot-col li{margin-bottom:11px;font-size:.88rem;color:var(--mut)}
+  .foot-col li b{font-weight:400;letter-spacing:.1em;color:var(--inkp)}
+  .foot-col a{color:var(--mut);text-decoration:none;border-bottom:1px dotted transparent;transition:color .5s,border-color .5s}
+  .foot-col a:hover{color:var(--seal);border-color:var(--seal)}
+  .foot-col .m{margin-left:14px;font-size:.78rem}
+  .foot-end{margin-top:80px;display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center}
+  .seal-big{width:76px;height:76px;background:var(--seal);color:#f3ece0;border-radius:6px;display:grid;grid-template-columns:1fr 1fr;place-items:center;font-size:1.15rem;line-height:1;padding:8px;box-shadow:0 10px 44px rgba(192,90,64,.28)}
+  .foot-end .tiny{font-size:.74rem;letter-spacing:.24em;color:var(--faint)}
+
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
+    .rv,.mf p .ch{opacity:1!important;transform:none!important}
+    .li{transform:none!important}
+    #loader{display:none}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gl" aria-hidden="true"></canvas>
+<div id="grain" aria-hidden="true"></div>
+
+<!-- 载入幕 -->
+<div id="loader" aria-hidden="true">
+  <div class="ld-seal">静</div>
+  <div class="ld-line"><i></i></div>
+  <div class="ld-t">平静地探寻</div>
+</div>
+
+<!-- 固定层 -->
+<div id="topbar" class="chrome">
+  <div class="brand"><span class="seal-s">静</span><span>平静地探寻 · 夜航</span></div>
+  <nav>
+    <a href="#top">序</a><a href="#w1">六个小世界</a><a href="#traits">气质</a><a href="#foot">足迹</a>
+  </nav>
+</div>
+<nav id="dots" class="chrome" aria-label="场景导航">
+  <a href="#top" data-sec="top"><i>序</i></a>
+  <a href="#w1" data-sec="w1"><i>其一 伊卡洛斯</i></a>
+  <a href="#w2" data-sec="w2"><i>其二 僧侣</i></a>
+  <a href="#w3" data-sec="w3"><i>其三 二十一天</i></a>
+  <a href="#w4" data-sec="w4"><i>其四 史莱姆</i></a>
+  <a href="#w5" data-sec="w5"><i>其五 夜贼</i></a>
+  <a href="#w6" data-sec="w6"><i>其六 云海拾句</i></a>
+  <a href="#foot" data-sec="foot"><i>尾</i></a>
+</nav>
+<a id="vswitch" class="chrome" href="index.html">← 纸上 · 第一版</a>
+<div id="cdot" class="chrome" aria-hidden="true"></div>
+<div id="cring" class="chrome" aria-hidden="true"></div>
+
+<div id="spacer" aria-hidden="true"></div>
+
+<div id="view">
+
+  <!-- ═══ 首屏 ═══ -->
+  <header class="hero" id="top" data-tint="#8f7f5e">
+    <span class="side-words l">保 持 平 静</span>
+    <span class="side-words r">继 续 探 寻</span>
+    <div class="kicker lm on"><span class="li">手作互动作品合集 · 六个小世界</span></div>
+    <h1><span class="lm on"><span class="li">平静地探寻</span></span></h1>
+    <div class="en lm on"><span class="li">C A L M L Y &nbsp; E X P L O R I N G</span></div>
+    <p class="sub rv">沉浸夜航版 · 参考 <em>lusion.co</em> 的流动叙事，保留水墨的心跳</p>
+    <div class="scroll-cue"><span>慢慢 向 下</span><span class="line"></span></div>
+  </header>
+
+  <!-- ═══ 序 ═══ -->
+  <section class="mf wrap" id="xu" data-tint="#7d6a4f">
+    <div>
+      <div class="cap rv">序 · MANIFESTO</div>
+      <p id="mfText">我们以为自己在寻找世界，其实是在寻找——*认识世界的方法*。这里没有排行榜，没有倒计时，也没有「必须做完」的事。</p>
+    </div>
+  </section>
+
+  <!-- ═══ 其一 伊卡洛斯 ═══ -->
+  <section class="scene wrap" id="w1" data-tint="#3f5f8f">
+    <div class="ghost" data-para="0.16">壹</div>
+    <div class="scene-in">
+      <div class="s-emblem" data-para="0.09">
+        <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
+          <g class="float">
+            <path d="M14 44 L52 20 L40 46 L33 39 Z" fill="#dfe7f2" stroke="#3f5f8f" stroke-width="1.4" stroke-linejoin="round"/>
+            <path d="M33 39 L40 46 L34 52 Z" fill="#3f5f8f"/>
+          </g>
+          <path d="M8 60 Q20 54 30 59 T52 59 T66 58" stroke="#8fa8c9" stroke-width="1.2" opacity=".5"/>
+        </svg>
+      </div>
+      <div class="s-no rv">其一 · ICARUS IN THE CITY</div>
+      <h2 class="rv">城市中的伊卡洛斯</h2>
+      <div class="en rv">数字剪纸互动作品</div>
+      <p class="desc rv">先剪下纸片，创造一个属于你的世界，再创造一个人，把它们放在一起——然后看蓝色的伊卡洛斯，在你的世界里慢慢漫游。一件可以慢慢做完的小事。</p>
+      <div class="s-tags rv"><span>数字剪纸</span><span>拼贴</span><span>漫游</span></div>
+      <div class="s-links rv">
+        <a class="play" href="https://boom-0620.github.io/icarus-in-the-city/" target="_blank" rel="noopener">进入小世界 →</a>
+        <a class="code" href="https://github.com/boom-0620/icarus-in-the-city" target="_blank" rel="noopener">源码</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 其二 僧侣 ═══ -->
+  <section class="scene wrap" id="w2" data-tint="#5c7f6b">
+    <div class="ghost" data-para="0.16">贰</div>
+    <div class="scene-in">
+      <div class="s-emblem" data-para="0.09">
+        <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
+          <circle class="moon" cx="52" cy="22" r="9" fill="none" stroke="#7ea893" stroke-width="1.4"/>
+          <path d="M6 54 Q20 30 30 46 T52 44 L68 54" stroke="#7ea893" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+          <path d="M22 54 Q34 40 44 54" stroke="#7ea893" stroke-width="1.1" opacity=".5" fill="none"/>
+          <path d="M8 60 H64" stroke="#7ea893" stroke-width="1" opacity=".4"/>
+        </svg>
+      </div>
+      <div class="s-no rv">其二 · SUPER MONK ADVENTURE</div>
+      <h2 class="rv">超级僧侣探险</h2>
+      <div class="en rv">随身修行器上的五段山水</div>
+      <p class="desc rv">晨雾水岸、雨夜山径、竹林听风、雪寺暮钟、星夜渡口。拾残卷、点莲灯、堆雪人；到第五关，请松开手——看小僧自己走过夜色，走向对岸。</p>
+      <div class="s-tags rv"><span>山水五关</span><span>随身修行器</span><span>天空之镜</span></div>
+      <div class="s-links rv">
+        <a class="play" href="https://boom-0620.github.io/super-monk-adventure/game.html" target="_blank" rel="noopener">进入小世界 →</a>
+        <a class="code" href="https://github.com/boom-0620/super-monk-adventure" target="_blank" rel="noopener">源码</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 其三 二十一天 ═══ -->
+  <section class="scene wrap" id="w3" data-tint="#8a8378">
+    <div class="ghost" data-para="0.16">叁</div>
+    <div class="scene-in">
+      <div class="s-emblem" data-para="0.09">
+        <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
+          <path class="draw" d="M20 46 C10 34 26 20 36 26 C48 33 30 52 22 44 C14 36 34 14 48 20 C62 26 58 46 44 52 C34 56 26 50 30 42" stroke="#b0a894" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+          <circle cx="53" cy="24" r="3.4" fill="#c05a40"/>
+        </svg>
+      </div>
+      <div class="s-no rv">其三 · CALM EXPLORE · 21 DAYS</div>
+      <h2 class="rv">平静地探寻 · 二十一天</h2>
+      <div class="en rv">一场关于「感知」的互动探索</div>
+      <p class="desc rv">灰色纸面上有一团黑色的乱线。一个孩子用二十一天把它一点一点拆开——线慢慢变成形状、颜色、光、气味、风、记忆。你摸过的东西会留下痕迹，每个人的第二十天都不一样。</p>
+      <div class="s-tags rv"><span>感知</span><span>痕迹</span><span>廿一天日记</span></div>
+      <div class="s-links rv">
+        <a class="play" href="https://boom-0620.github.io/calm-explore-21-days/" target="_blank" rel="noopener">进入小世界 →</a>
+        <a class="code" href="https://github.com/boom-0620/calm-explore-21-days" target="_blank" rel="noopener">源码</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 其四 史莱姆 ═══ -->
+  <section class="scene wrap" id="w4" data-tint="#67a79a">
+    <div class="ghost" data-para="0.16">肆</div>
+    <div class="scene-in">
+      <div class="s-emblem" data-para="0.09">
+        <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
+          <g class="jelly">
+            <path d="M18 52 C10 40 16 26 36 26 C56 26 62 40 54 52 C48 60 24 60 18 52 Z" fill="#dcefe9" stroke="#67a79a" stroke-width="1.5"/>
+            <circle cx="30" cy="41" r="2" fill="#3e6e63"/>
+            <circle cx="42" cy="41" r="2" fill="#3e6e63"/>
+            <path d="M33 47 Q36 50 39 47" stroke="#3e6e63" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+          </g>
+          <path d="M14 60 H58" stroke="#67a79a" stroke-width="1" opacity=".45"/>
+          <path d="M50 20 Q54 14 58 18" stroke="#67a79a" stroke-width="1.2" opacity=".6" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="s-no rv">其四 · JELLY SLIME GARDEN</div>
+      <h2 class="rv">箱庭世界 · 果冻史莱姆</h2>
+      <div class="en rv">Three.js 微缩箱庭</div>
+      <p class="desc rv">一只果冻质感的小史莱姆，可以戳、可以揉、可以甩出去，也会自己追着球跑、坐上秋千越荡越高。投喂苹果，换顶帽子，等一场雪。模型与音效全部程序化生成。</p>
+      <div class="s-tags rv"><span>3D 箱庭</span><span>果冻质感</span><span>心情系统</span></div>
+      <div class="s-links rv">
+        <a class="play" href="https://626774341-cyber.github.io/slime-game/" target="_blank" rel="noopener">进入小世界 →</a>
+        <a class="code" href="https://github.com/626774341-cyber/slime-game" target="_blank" rel="noopener">源码</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 其五 夜贼 ═══ -->
+  <section class="scene wrap" id="w5" data-tint="#b9b4a8">
+    <div class="ghost" data-para="0.16">伍</div>
+    <div class="scene-in">
+      <div class="s-emblem" data-para="0.09">
+        <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
+          <g stroke="#ece7da" stroke-width="1.3" fill="none">
+            <path d="M36 12 L58 24 L36 36 L14 24 Z" fill="#ece7da" fill-opacity=".1"/>
+            <path d="M14 24 V44 L36 56 V36"/>
+            <path d="M58 24 V44 L36 56"/>
+          </g>
+          <g class="blink">
+            <path d="M26 33 Q31 28 36 33 Q31 38 26 33 Z" fill="#ece7da"/>
+            <circle cx="31" cy="33" r="1.7" fill="#0b0c10"/>
+          </g>
+        </svg>
+      </div>
+      <div class="s-no rv" style="--ac:#ece7da">其五 · THE BURGLAR</div>
+      <h2 class="rv">夜贼</h2>
+      <div class="en rv">纯黑白等距潜入</div>
+      <p class="desc rv">礼帽绅士潜入豪宅五间密室：蓄力偷窃、抛硬币、放烟雾弹，别被守卫的灯光扫到。开灯看得清，也就不安全——站进暗影里，听心跳声越来越近。纪念碑谷式的立体与安静。</p>
+      <div class="s-tags rv"><span>黑白等距</span><span>潜入</span><span>光影博弈</span></div>
+      <div class="s-links rv" style="--ac:#ece7da">
+        <a class="play" href="https://626774341-cyber.github.io/the-burglar/" target="_blank" rel="noopener">进入小世界 →</a>
+        <a class="code" href="https://github.com/626774341-cyber/the-burglar" target="_blank" rel="noopener">源码</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 其六 云海拾句 ═══ -->
+  <section class="scene wrap" id="w6" data-tint="#56719a">
+    <div class="ghost" data-para="0.16">陆</div>
+    <div class="scene-in">
+      <div class="s-emblem" data-para="0.09">
+        <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
+          <path d="M8 46 Q18 38 28 45 T48 44 T66 43" stroke="#8fa5c9" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <path d="M12 56 Q22 49 32 55 T52 54 T64 53" stroke="#8fa5c9" stroke-width="1.1" opacity=".55" fill="none" stroke-linecap="round"/>
+          <circle class="tw1" cx="22" cy="22" r="1.8" fill="#8fa5c9"/>
+          <circle class="tw2" cx="42" cy="16" r="1.4" fill="#8fa5c9"/>
+          <circle class="tw3" cx="54" cy="26" r="1.6" fill="#8fa5c9"/>
+          <circle class="tw2" cx="32" cy="30" r="1.1" fill="#8fa5c9"/>
+        </svg>
+      </div>
+      <div class="s-no rv">其六 · UP IN THE CLOUD SEA</div>
+      <h2 class="rv">云海拾句</h2>
+      <div class="en rv">在云上，写一首自己的诗</div>
+      <p class="desc rv">在云海、星云与极光之上，七本诗集的句子随云层漂浮。点击拾进工作台，排序、分节、添一句自己的——完成一首属于你的诗，并看每句的出处与情绪。博尔赫斯、泰戈尔、尹东柱、海涅……都在云上。</p>
+      <div class="s-tags rv"><span>诗句拾取</span><span>云海 · 星云 · 极光</span><span>写一首自己的诗</span></div>
+      <div class="credit rv">三个场景的画面参考 Shadertoy 原作：<br>
+        云海 ← mdb《<a href="https://www.shadertoy.com/view/Ndc3zl" target="_blank" rel="noopener">Up in the Cloud Sea</a>》（复刻扩展） ·
+        星云 ← Kali《<a href="https://www.shadertoy.com/view/XlfGRj" target="_blank" rel="noopener">Star Nest</a>》（MIT） ·
+        极光 ← nimitz《<a href="https://www.shadertoy.com/view/XtGGRt" target="_blank" rel="noopener">Auroras</a>》（CC BY-NC-SA 3.0）
+      </div>
+      <div class="s-links rv">
+        <a class="play" href="https://lijiaxuan020128-del.github.io/up-in-the-cloud-sea/" target="_blank" rel="noopener">进入小世界 →</a>
+        <a class="code" href="https://github.com/lijiaxuan020128-del/up-in-the-cloud-sea" target="_blank" rel="noopener">源码</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 长幕 ═══ -->
+  <div class="marquee" aria-hidden="true">
+    <div class="mq">
+      <span>保持平静 <b>·</b> 继续探寻 <b>·</b> 今天也慢慢走 <b>·</b> 风没有方向 <b>·</b> 痕迹会留下 <b>·</b>&nbsp;</span>
+      <span>保持平静 <b>·</b> 继续探寻 <b>·</b> 今天也慢慢走 <b>·</b> 风没有方向 <b>·</b> 痕迹会留下 <b>·</b>&nbsp;</span>
+    </div>
+  </div>
+
+  <!-- ═══ 气质 ═══ -->
+  <section class="traits wrap" id="traits" data-tint="#7d5a4a">
+    <div>
+      <div class="sec-cap rv">共同的气质 · IN COMMON</div>
+      <ul>
+        <li class="rv"><i>01</i><div><h4>双击即开，无需安装</h4><p>几乎都是单文件作品：无框架、无依赖、无网络请求。存在硬盘里，离线也能打开。</p></div></li>
+        <li class="rv"><i>02</i><div><h4>没有操作说明</h4><p>线会自己轻轻动一下，太阳会暖暖地亮着。碰一碰、拖一拖、按住不放、画一笔试试。</p></div></li>
+        <li class="rv"><i>03</i><div><h4>失败是温柔的</h4><p>落水只是一圈涟漪，雨夜的灯暗了会再亮，雪地上留下脚印和断点。没有人会被责备。</p></div></li>
+        <li class="rv"><i>04</i><div><h4>痕迹会留下</h4><p>摸过的太阳，在之后的世界里是亮的；拾过的莲，化作星夜水面的星光。走过了，就在。</p></div></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ═══ 引句 ═══ -->
+  <section class="quote wrap" data-tint="#6b5a6e">
+    <blockquote id="quoteText" class="vis">风没有方向。</blockquote>
+    <cite id="quoteFrom" class="vis">—— 竹林听风 · 超级僧侣探险</cite>
+  </section>
+
+  <!-- ═══ 页脚 ═══ -->
+  <footer id="foot" data-tint="#7a4636">
+    <div class="wrap">
+      <div class="foot-motto rv">保持平静，<em>继续探寻</em>。</div>
+      <div class="foot-grid">
+        <div class="foot-col rv">
+          <h5>六 个 小 世 界</h5>
+          <ul>
+            <li><b>其一 · 城市中的伊卡洛斯</b><br><a href="https://boom-0620.github.io/icarus-in-the-city/" target="_blank" rel="noopener">boom-0620.github.io/icarus-in-the-city</a><a class="m" href="https://github.com/boom-0620/icarus-in-the-city" target="_blank" rel="noopener">源码</a></li>
+            <li><b>其二 · 超级僧侣探险</b><br><a href="https://boom-0620.github.io/super-monk-adventure/game.html" target="_blank" rel="noopener">boom-0620.github.io/super-monk-adventure</a><a class="m" href="https://github.com/boom-0620/super-monk-adventure" target="_blank" rel="noopener">源码</a></li>
+            <li><b>其三 · 平静地探寻 · 二十一天</b><br><a href="https://boom-0620.github.io/calm-explore-21-days/" target="_blank" rel="noopener">boom-0620.github.io/calm-explore-21-days</a><a class="m" href="https://github.com/boom-0620/calm-explore-21-days" target="_blank" rel="noopener">源码</a></li>
+            <li><b>其四 · 箱庭世界 · 果冻史莱姆</b><br><a href="https://626774341-cyber.github.io/slime-game/" target="_blank" rel="noopener">626774341-cyber.github.io/slime-game</a><a class="m" href="https://github.com/626774341-cyber/slime-game" target="_blank" rel="noopener">源码</a></li>
+            <li><b>其五 · 夜贼</b><br><a href="https://626774341-cyber.github.io/the-burglar/" target="_blank" rel="noopener">626774341-cyber.github.io/the-burglar</a><a class="m" href="https://github.com/626774341-cyber/the-burglar" target="_blank" rel="noopener">源码</a></li>
+            <li><b>其六 · 云海拾句</b><br><a href="https://lijiaxuan020128-del.github.io/up-in-the-cloud-sea/" target="_blank" rel="noopener">lijiaxuan020128-del.github.io/up-in-the-cloud-sea</a><a class="m" href="https://github.com/lijiaxuan020128-del/up-in-the-cloud-sea" target="_blank" rel="noopener">源码</a></li>
+          </ul>
+        </div>
+        <div class="foot-col rv">
+          <h5>关 于 此 页</h5>
+          <ul>
+            <li>夜航版 · 第二版本，参考 <a href="https://lusion.co/" target="_blank" rel="noopener">lusion.co</a> 的沉浸式叙事，结合水墨气质。</li>
+            <li>六个小世界，出自三双手：<br>
+              <a href="https://github.com/boom-0620" target="_blank" rel="noopener">boom-0620</a>（其一 · 其二 · 其三），
+              <a href="https://github.com/626774341-cyber" target="_blank" rel="noopener">626774341-cyber</a>（其四 · 其五），
+              <a href="https://github.com/lijiaxuan020128-del" target="_blank" rel="noopener">lijiaxuan020128-del</a>（其六）。</li>
+            <li>本页同样是单文件：无框架、无依赖、无网络请求。</li>
+            <li>另一版本：<a href="index.html">纸上 · 第一版</a> —— 宣纸水墨，更安静些。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="foot-end rv">
+        <div class="seal-big"><span>平</span><span>静</span><span>探</span><span>寻</span></div>
+        <div class="tiny">平静地探寻 · 手作互动作品合集 · 夜航版 · MMXXVI</div>
+      </div>
+    </div>
+  </footer>
+
+</div><!-- /view -->
+
+<script>
+(function(){
+"use strict";
+var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var finePtr = window.matchMedia("(pointer: fine)").matches;
+var smoothOn = finePtr && !reduced;
+var vh = innerHeight, vw = innerWidth;
+
+window.__err = null;
+addEventListener("error", function(e){ window.__err = (window.__err||"") + e.message + " | "; });
+
+/* ── 宣言逐字 ── */
+var mf = document.getElementById("mfText");
+(function(){
+  var raw = mf.textContent;
+  mf.innerHTML = "";
+  var i = 0, hi = false;
+  raw.split("").forEach(function(ch){
+    if(ch === "*"){ hi = !hi; return; }
+    var sp = document.createElement("span");
+    sp.className = "ch" + (hi ? " hi" : "");
+    sp.textContent = ch;
+    sp.style.transitionDelay = Math.min(i * 38, 2600) + "ms";
+    mf.appendChild(sp);
+    i++;
+  });
+})();
+
+/* ── 平滑滚动容器 ── */
+var view = document.getElementById("view"), spacer = document.getElementById("spacer");
+if(smoothOn){
+  document.documentElement.classList.add("von");
+  view.classList.add("fixed");
+  spacer.style.display = "block";
+}
+function setH(){ spacer.style.height = smoothOn ? view.offsetHeight + "px" : "0px"; }
+
+/* 视差元素缓存 */
+var paras = [].map.call(document.querySelectorAll("[data-para]"), function(el){
+  return { el: el, sp: parseFloat(el.getAttribute("data-para")), top: 0, h: 0 };
+});
+function cachePara(){
+  vh = innerHeight; vw = innerWidth;
+  paras.forEach(function(p){
+    var st = view.style.transform; view.style.transform = "";
+    var r = p.el.getBoundingClientRect();
+    p.top = r.top + (smoothOn ? cur : scrollY); p.h = r.height;
+    view.style.transform = st;
+  });
+  setH();
+}
+
+/* ── 渐显 ── */
+var rvs = [].map.call(document.querySelectorAll(".rv"), function(el){ return { el: el, on: false }; });
+var mfp = document.getElementById("mfText");
+
+/* ── 引句轮换 ── */
+var quotes = [
+  ["风没有方向。","—— 竹林听风 · 超级僧侣探险"],
+  ["我还要去看看。","—— 第二十一天 · 平静地探寻"],
+  ["今天也慢慢走。","—— 慢慢走小旅人 · 同系列"],
+  ["剪下、拼贴，进入你自己的世界。","—— 城市中的伊卡洛斯"],
+  ["看得清与安全，不可兼得。","—— 夜贼 THE BURGLAR"],
+  ["在云上，写一首自己的诗。","—— 云海拾句"],
+  ["保持平静，继续探寻。","—— 本页结语"]
+];
+var qt = document.getElementById("quoteText"), qc = document.getElementById("quoteFrom"), qi = 0;
+setInterval(function(){
+  qt.classList.remove("vis"); qc.classList.remove("vis");
+  setTimeout(function(){
+    qi = (qi + 1) % quotes.length;
+    qt.textContent = quotes[qi][0]; qc.textContent = quotes[qi][1];
+    qt.classList.add("vis"); qc.classList.add("vis");
+  }, reduced ? 0 : 2000);
+}, 6000);
+
+/* ── 自定义光标 ── */
+var cd = document.getElementById("cdot"), cr = document.getElementById("cring");
+var mx = vw/2, my = vh/2, rx = mx, ry = my;
+if(finePtr && !reduced){
+  addEventListener("mousemove", function(e){
+    mx = e.clientX; my = e.clientY;
+    document.body.classList.add("hascursor");
+  }, {passive:true});
+  document.addEventListener("mouseover", function(e){
+    cr.classList.toggle("big", !!e.target.closest("a"));
+  });
+}
+
+/* ── WebGL 流体墨色背景 ── */
+var canvas = document.getElementById("gl"), gl = null, prog = null, uTint, uTime, uMouse, uRes, tintCur = [0.42,0.36,0.26], tintTgt = tintCur.slice();
+try{
+  gl = canvas.getContext("webgl", { antialias:false, alpha:false, powerPreference:"low-power" });
+}catch(e){ gl = null; }
+if(gl){
+  var VS = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
+  var FS = [
+  "precision highp float;",
+  "uniform vec2 uRes;uniform float uTime;uniform vec2 uMouse;uniform vec3 uTint;",
+  "float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}",
+  "float vno(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.0-2.0*f);",
+  " float a=h21(i),b=h21(i+vec2(1.,0.)),c=h21(i+vec2(0.,1.)),d=h21(i+vec2(1.,1.));",
+  " return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);}",
+  "float fbm(vec2 p){float v=0.0;float a=0.5;mat2 r=mat2(0.8,-0.6,0.6,0.8);",
+  " for(int i=0;i<5;i++){v+=a*vno(p);p=r*p*2.02+vec2(3.1,1.3);a*=0.55;}return v;}",
+  "void main(){",
+  " vec2 uv=(gl_FragCoord.xy-0.5*uRes)/uRes.y;",
+  " float t=uTime*0.045;",
+  " vec2 q=vec2(fbm(uv*1.4+vec2(0.0,t)),fbm(uv*1.4-vec2(t*0.6,0.0)));",
+  " float f1=fbm(uv*2.0+q*1.5+vec2(t*0.3,-t*0.2));",
+  " float f2=fbm(uv*3.5-q*1.2+vec2(-t*0.4,t*0.25));",
+  " vec3 deep=vec3(0.040,0.044,0.056);",
+  " vec3 mid =vec3(0.075,0.081,0.098);",
+  " vec3 col=mix(deep,mid,smoothstep(0.25,0.95,f1));",
+  " col=mix(col,uTint*vec3(0.32,0.32,0.36),(0.22+0.45*f2)*smoothstep(0.35,1.0,f1)*0.6);",
+  " vec2 gp=floor(gl_FragCoord.xy/3.0);",
+  " float star=step(0.994,h21(gp))*(0.5+0.5*sin(uTime*1.4+h21(gp)*43.0));",
+  " col+=vec3(0.9,0.88,0.8)*star*0.07;",
+  " vec2 m=(uMouse-0.5*uRes)/uRes.y;",
+  " col+=uTint*exp(-length(uv-m)*4.0)*0.10;",
+  " col*=1.0-0.5*dot(uv,uv)*0.75;",
+  " col+=(h21(gl_FragCoord.xy+fract(uTime)*7.0)-0.5)*0.018;",
+  " gl_FragColor=vec4(col,1.0);",
+  "}"
+  ].join("\n");
+  function sh(type, src){
+    var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  try{
+    prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+    var buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+    var loc = gl.getAttribLocation(prog, "p");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    uRes = gl.getUniformLocation(prog, "uRes");
+    uTime = gl.getUniformLocation(prog, "uTime");
+    uMouse = gl.getUniformLocation(prog, "uMouse");
+    uTint = gl.getUniformLocation(prog, "uTint");
+  }catch(e){ gl = null; }
+}
+var mxr = vw/2, myr = vh/2;
+function sizeGL(){
+  if(!gl) return;
+  var sc = Math.min(devicePixelRatio || 1, 1.5) * 0.75;
+  canvas.width = Math.max(2, Math.round(vw * sc));
+  canvas.height = Math.max(2, Math.round(vh * sc));
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+addEventListener("mousemove", function(e){ mxr = e.clientX; myr = vh - e.clientY; }, {passive:true});
+
+function hex2rgb(h){
+  h = h.replace("#","");
+  return [parseInt(h.substr(0,2),16)/255, parseInt(h.substr(2,2),16)/255, parseInt(h.substr(4,2),16)/255];
+}
+var tinted = [].map.call(document.querySelectorAll("[data-tint]"), function(el){
+  return { el: el, c: hex2rgb(el.getAttribute("data-tint")) };
+});
+
+/* ── 圆点导航激活 ── */
+var dotLinks = [].map.call(document.querySelectorAll("#dots a"), function(a){
+  var id = a.getAttribute("data-sec");
+  return { a: a, el: document.getElementById(id) };
+});
+
+/* ── 锚点拦截（平滑模式下直接跳目标，由 lerp 滑行） ── */
+document.querySelectorAll('a[href^="#"]').forEach(function(a){
+  a.addEventListener("click", function(e){
+    var t = document.getElementById(a.getAttribute("href").slice(1));
+    if(!t) return;
+    e.preventDefault();
+    if(smoothOn){ scrollTo(0, t.offsetTop); }
+    else { t.scrollIntoView({ behavior: reduced ? "auto" : "smooth" }); }
+  });
+});
+
+/* ── 主循环 ── */
+var cur = 0, tgt = 0, t0 = performance.now();
+function loop(now){
+  tgt = scrollY;
+  cur += (tgt - cur) * 0.085;
+  if(Math.abs(tgt - cur) < 0.05) cur = tgt;
+  if(smoothOn) view.style.transform = "translate3d(0," + (-cur) + "px,0)";
+
+  /* 视差 */
+  for(var i = 0; i < paras.length; i++){
+    var p = paras[i];
+    var c = (p.top + p.h/2) - (cur + vh/2);
+    p.el.style.transform = "translate3d(0," + (c * p.sp).toFixed(2) + "px,0)" + (p.el.classList.contains("ghost") ? " translateY(-50%)" : "");
+  }
+
+  /* 渐显 */
+  for(var j = 0; j < rvs.length; j++){
+    if(!rvs[j].on){
+      var r = rvs[j].el.getBoundingClientRect();
+      if(r.top < vh * 0.9){ rvs[j].el.classList.add("on"); rvs[j].on = true; }
+    }
+  }
+  if(!mfp.classList.contains("on")){
+    var mr = mfp.getBoundingClientRect();
+    if(mr.top < vh * 0.82) mfp.classList.add("on");
+  }
+
+  /* 当前区块 → 色调 */
+  var center = cur + vh * 0.5;
+  for(var k = 0; k < tinted.length; k++){
+    var el = tinted[k].el, top = 0, o = el;
+    while(o && o !== view){ top += o.offsetTop; o = o.offsetParent; }
+    var bot = top + el.offsetHeight;
+    if(center >= top && center < bot){ tintTgt = tinted[k].c; break; }
+  }
+  for(var n = 0; n < 3; n++) tintCur[n] += (tintTgt[n] - tintCur[n]) * 0.03;
+
+  /* 圆点激活 */
+  for(var m = 0; m < dotLinks.length; m++){
+    var dl = dotLinks[m];
+    var dt = dl.el.offsetTop, db = dt + dl.el.offsetHeight;
+    dl.a.classList.toggle("on", center >= dt && center < db);
+  }
+
+  /* 光标 */
+  if(finePtr && !reduced){
+    cd.style.transform = "translate(" + mx + "px," + my + "px) translate(-50%,-50%)";
+    rx += (mx - rx) * 0.14; ry += (my - ry) * 0.14;
+    cr.style.transform = "translate(" + rx + "px," + ry + "px) translate(-50%,-50%)";
+  }
+
+  /* GL */
+  if(gl){
+    var tsec = reduced ? 10 : (now - t0) / 1000;
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform1f(uTime, tsec);
+    gl.uniform2f(uMouse, mxr * canvas.width / vw, myr * canvas.height / vh);
+    gl.uniform3f(uTint, tintCur[0], tintCur[1], tintCur[2]);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+/* ── 启动 ── */
+sizeGL(); cachePara(); cur = tgt = scrollY;
+addEventListener("resize", function(){ sizeGL(); cachePara(); });
+if(reduced){
+  rvs.forEach(function(r){ r.el.classList.add("on"); r.on = true; });
+  mfp.classList.add("on");
+  document.querySelectorAll(".lm").forEach(function(l){ l.classList.add("on"); });
+}
+requestAnimationFrame(loop);
+setTimeout(function(){
+  document.getElementById("loader").classList.add("done");
+  document.body.classList.add("ready");
+}, reduced ? 100 : 1500);
+})();
+</script>
+</body>
+</html>
