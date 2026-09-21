@@ -24,6 +24,7 @@
 
   /* ── WebGL 画布 ── */
   #gl{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block}
+  #stars{position:fixed;inset:0;width:100%;height:100%;z-index:3;pointer-events:none}
   #grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.05;mix-blend-mode:screen;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");}
 
@@ -110,7 +111,14 @@
   .scene{min-height:100svh;position:relative;display:flex;align-items:center;padding:120px 44px}
   @media(max-width:760px){.scene{padding:96px 26px}}
   .ghost{position:absolute;top:50%;transform:translateY(-50%);font-size:clamp(9rem,30vh,17rem);line-height:1;
-    color:transparent;-webkit-text-stroke:1px rgba(236,231,218,.09);pointer-events:none;user-select:none;letter-spacing:0}
+    color:transparent;-webkit-text-stroke:1px rgba(236,231,218,.09);user-select:none;letter-spacing:0;
+    pointer-events:auto;transition:-webkit-text-stroke-color 1s ease}
+  .ghost:hover{-webkit-text-stroke-color:rgba(236,231,218,.2)}
+  .ghost::after{content:attr(data-text);position:absolute;left:0;top:0;width:100%;color:transparent;-webkit-text-fill-color:transparent;
+    background-image:var(--peek);background-size:cover;background-position:center;
+    -webkit-background-clip:text;background-clip:text;-webkit-text-stroke:0;
+    opacity:0;transition:opacity 1.2s ease;pointer-events:none;filter:saturate(.92) contrast(1.04)}
+  .ghost:hover::after{opacity:.85}
   .scene:nth-of-type(odd) .ghost{right:4vw}
   .scene:nth-of-type(even) .ghost{left:4vw}
   .scene-in{max-width:560px;position:relative;z-index:2}
@@ -200,6 +208,7 @@
 <body>
 
 <canvas id="gl" aria-hidden="true"></canvas>
+<canvas id="stars" aria-hidden="true"></canvas>
 <div id="grain" aria-hidden="true"></div>
 
 <!-- 载入幕 -->
@@ -255,7 +264,7 @@
 
   <!-- ═══ 其一 伊卡洛斯 ═══ -->
   <section class="scene wrap" id="w1" data-tint="#3f5f8f">
-    <div class="ghost" data-para="0.16">壹</div>
+    <div class="ghost" data-text="壹" data-para="0.16" style="--peek:url('assets/w1.jpg')">壹</div>
     <div class="scene-in">
       <div class="s-emblem" data-para="0.09">
         <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
@@ -280,7 +289,7 @@
 
   <!-- ═══ 其二 僧侣 ═══ -->
   <section class="scene wrap" id="w2" data-tint="#5c7f6b">
-    <div class="ghost" data-para="0.16">贰</div>
+    <div class="ghost" data-text="贰" data-para="0.16" style="--peek:url('assets/w2.jpg')">贰</div>
     <div class="scene-in">
       <div class="s-emblem" data-para="0.09">
         <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
@@ -304,7 +313,7 @@
 
   <!-- ═══ 其三 二十一天 ═══ -->
   <section class="scene wrap" id="w3" data-tint="#8a8378">
-    <div class="ghost" data-para="0.16">叁</div>
+    <div class="ghost" data-text="叁" data-para="0.16" style="--peek:url('assets/w3.jpg')">叁</div>
     <div class="scene-in">
       <div class="s-emblem" data-para="0.09">
         <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
@@ -326,7 +335,7 @@
 
   <!-- ═══ 其四 史莱姆 ═══ -->
   <section class="scene wrap" id="w4" data-tint="#67a79a">
-    <div class="ghost" data-para="0.16">肆</div>
+    <div class="ghost" data-text="肆" data-para="0.16" style="--peek:url('assets/w4.jpg')">肆</div>
     <div class="scene-in">
       <div class="s-emblem" data-para="0.09">
         <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
@@ -354,7 +363,7 @@
 
   <!-- ═══ 其五 夜贼 ═══ -->
   <section class="scene wrap" id="w5" data-tint="#b9b4a8">
-    <div class="ghost" data-para="0.16">伍</div>
+    <div class="ghost" data-text="伍" data-para="0.16" style="--peek:url('assets/w5.jpg')">伍</div>
     <div class="scene-in">
       <div class="s-emblem" data-para="0.09">
         <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
@@ -383,7 +392,7 @@
 
   <!-- ═══ 其六 云海拾句 ═══ -->
   <section class="scene wrap" id="w6" data-tint="#56719a">
-    <div class="ghost" data-para="0.16">陆</div>
+    <div class="ghost" data-text="陆" data-para="0.16" style="--peek:url('assets/w6.jpg')">陆</div>
     <div class="scene-in">
       <div class="s-emblem" data-para="0.09">
         <svg viewBox="0 0 72 72" fill="none" aria-hidden="true" width="110" height="110">
@@ -566,6 +575,38 @@ if(finePtr && !reduced){
   });
 }
 
+/* ── 星光汇聚：鼠标停滞时 ── */
+var sc = document.getElementById("stars"), sg = null;
+var stars = [], lastMove = performance.now(), starBright = 0, sDpr = 1;
+function makeSprite(core, mid, spike){
+  var c = document.createElement("canvas"); c.width = c.height = 64;
+  var g = c.getContext("2d");
+  var rad = g.createRadialGradient(32,32,0,32,32,26);
+  rad.addColorStop(0, core); rad.addColorStop(0.3, mid); rad.addColorStop(1, "rgba(255,250,235,0)");
+  g.fillStyle = rad; g.fillRect(0,0,64,64);
+  var lin = g.createLinearGradient(32,2,32,62);
+  lin.addColorStop(0,"rgba(255,250,235,0)"); lin.addColorStop(0.5, spike); lin.addColorStop(1,"rgba(255,250,235,0)");
+  g.strokeStyle = lin; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(32,2); g.lineTo(32,62); g.moveTo(2,32); g.lineTo(62,32); g.stroke();
+  return c;
+}
+if(finePtr && !reduced){
+  sg = sc.getContext("2d");
+  sDpr = Math.min(devicePixelRatio || 1, 2);
+}
+function sizeStars(){
+  if(!sg) return;
+  sc.width = Math.max(2, Math.round(vw * sDpr));
+  sc.height = Math.max(2, Math.round(vh * sDpr));
+  sg.setTransform(sDpr, 0, 0, sDpr, 0, 0);
+}
+var spCool = makeSprite("rgba(255,252,242,1)","rgba(240,238,224,.55)","rgba(255,252,242,.85)");
+var spWarm = makeSprite("rgba(255,216,184,1)","rgba(255,178,140,.5)","rgba(255,205,170,.8)");
+addEventListener("mousemove", function(){
+  lastMove = performance.now();
+  for(var i = 0; i < stars.length; i++) stars[i].dead = true;
+}, {passive:true});
+
 /* ── WebGL 流体墨色背景 ── */
 var canvas = document.getElementById("gl"), gl = null, prog = null, uTint, uTime, uMouse, uRes, tintCur = [0.42,0.36,0.26], tintTgt = tintCur.slice();
 try{
@@ -712,6 +753,51 @@ function loop(now){
     cr.style.transform = "translate(" + rx + "px," + ry + "px) translate(-50%,-50%)";
   }
 
+  /* 星光汇聚 */
+  if(sg){
+    var idleMs = now - lastMove;
+    if(idleMs > 900 && stars.length < 46 && Math.random() < 0.34){
+      var sa = Math.random() * 6.283, sd = 90 + Math.random() * 170;
+      stars.push({ x: mx + Math.cos(sa) * sd, y: my + Math.sin(sa) * sd, vx:0, vy:0, o:0, dead:false,
+        r: 1.2 + Math.random() * 2.2, ph: Math.random() * 6.283, tw: 1.2 + Math.random() * 2.2,
+        orbR: 6 + Math.random() * 26, orbS: (0.25 + Math.random() * 0.5) * (Math.random() < 0.5 ? -1 : 1),
+        oa: Math.random() * 6.283, sp: Math.random() < 0.22 ? spWarm : spCool });
+    }
+    starBright += ((idleMs > 900 ? 1 : 0) - starBright) * 0.025;
+    sg.clearRect(0, 0, vw, vh);
+    var alive = [];
+    for(var s2 = 0; s2 < stars.length; s2++){
+      var st = stars[s2];
+      if(st.dead){ st.o -= 0.05; }
+      else{
+        st.oa += 0.012 * st.orbS;
+        var ex = mx + Math.cos(st.oa) * st.orbR, ey = my + Math.sin(st.oa) * st.orbR;
+        st.vx = (st.vx + (ex - st.x) * 0.012) * 0.92;
+        st.vy = (st.vy + (ey - st.y) * 0.012) * 0.92;
+        st.x += st.vx; st.y += st.vy;
+        st.o = Math.min(1, st.o + 0.03);
+      }
+      if(st.o > 0.02){
+        var twk = 0.55 + 0.45 * Math.sin(now / 1000 * st.tw + st.ph);
+        var ssp = st.r * 6;
+        sg.globalAlpha = Math.max(0, st.o * twk * (0.35 + 0.65 * starBright));
+        sg.drawImage(st.sp, st.x - ssp / 2, st.y - ssp / 2, ssp, ssp);
+        alive.push(st);
+      }
+    }
+    stars = alive;
+    if(starBright > 0.02){
+      var gr = 22 + starBright * 34;
+      var gg = sg.createRadialGradient(mx, my, 0, mx, my, gr);
+      gg.addColorStop(0, "rgba(255,250,236," + (0.24 * starBright).toFixed(3) + ")");
+      gg.addColorStop(1, "rgba(255,250,236,0)");
+      sg.globalAlpha = 1;
+      sg.fillStyle = gg;
+      sg.beginPath(); sg.arc(mx, my, gr, 0, 6.283); sg.fill();
+    }
+    sg.globalAlpha = 1;
+  }
+
   /* GL */
   if(gl){
     var tsec = reduced ? 10 : (now - t0) / 1000;
@@ -726,8 +812,8 @@ function loop(now){
 }
 
 /* ── 启动 ── */
-sizeGL(); cachePara(); cur = tgt = scrollY;
-addEventListener("resize", function(){ sizeGL(); cachePara(); });
+sizeGL(); sizeStars(); cachePara(); cur = tgt = scrollY;
+addEventListener("resize", function(){ sizeGL(); sizeStars(); cachePara(); });
 if(reduced){
   rvs.forEach(function(r){ r.el.classList.add("on"); r.on = true; });
   mfp.classList.add("on");
